@@ -1,0 +1,78 @@
+<#
+.SYNOPSIS
+    Automated Windows Security Audit Script
+.DESCRIPTION
+    Scans local TCP ports, checks active Windows Firewall profiles,
+    and generates a compliance report in CSV format.
+#>
+
+# Output report path
+$ReportPath = "$PSScriptRoot\Security_Audit_Report.csv"
+
+# Function: Scan local TCP ports
+function Get-OpenPorts {
+    try {
+        Write-Host "Scanning local TCP ports..."
+        $connections = Get-NetTCPConnection -State Listen -ErrorAction Stop |
+            Select-Object LocalAddress, LocalPort, State, OwningProcess
+        return $connections
+    }
+    catch {
+        Write-Warning "Failed to retrieve TCP connections: $_"
+        return @()
+    }
+}
+
+# Function: Get active firewall profiles
+function Get-FirewallProfiles {
+    try {
+        Write-Host "Checking Windows Firewall profiles..."
+        $profiles = Get-NetFirewallProfile -ErrorAction Stop |
+            Select-Object Name, Enabled, DefaultInboundAction, DefaultOutboundAction
+        return $profiles
+    }
+    catch {
+        Write-Warning "Failed to retrieve firewall profiles: $_"
+        return @()
+    }
+}
+
+# Function: Generate compliance report
+function Generate-Report {
+    param (
+        [array]$Ports,
+        [array]$FirewallProfiles
+    )
+
+    $reportData = @()
+
+    foreach ($port in $Ports) {
+        $reportData += [PSCustomObject]@{
+            Category = "Open Port"
+            Detail   = "$($port.LocalAddress):$($port.LocalPort)"
+            Status   = "Listening"
+        }
+    }
+
+    foreach ($profile in $FirewallProfiles) {
+        $status = if ($profile.Enabled) { "Enabled" } else { "Disabled" }
+        $reportData += [PSCustomObject]@{
+            Category = "Firewall Profile"
+            Detail   = $profile.Name
+            Status   = $status
+        }
+    }
+
+    try {
+        $reportData | Export-Csv -Path $ReportPath -NoTypeInformation -Force
+        Write-Host "Compliance report generated at: $ReportPath" -ForegroundColor Green
+    }
+    catch {
+        Write-Warning "Failed to write report: $_"
+    }
+}
+
+# Main Execution
+$openPorts = Get-OpenPorts
+$firewallProfiles = Get-FirewallProfiles
+Generate-Report -Ports $openPorts -FirewallProfiles $firewallProfiles
