@@ -64,6 +64,9 @@ Step 7: Test the implemented configurations on a Windows system to ensure proper
 - Block Port 23 rule creation
 - Rule verification
 - Rule removal
+- Image_of_code
+- audit_run_statement
+- CSV_Report_Output
 
 ## Result
 The PowerShell script successfully:
